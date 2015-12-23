@@ -21,7 +21,11 @@ var client agent.AgentIOClient
 var request *agent.Request
 var response *agent.Response
 
-var clients [128]agent.AgentIOClient = [128]agent.AgentIOClient{}
+const NumClients = 128
+
+type ClientPool [NumClients]agent.AgentIOClient
+
+var clients ClientPool = ClientPool{}
 
 func init() {
 	log.SetFlags(log.Lshortfile)
@@ -72,7 +76,7 @@ func BenchmarkGRPCClient(b *testing.B) {
 	request = &agent.Request{Path: "/foo"}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			client := clients[atomic.LoadInt32(&client_idx)%128]
+			client := clients[atomic.LoadInt32(&client_idx)%NumClients]
 			atomic.AddInt32(&client_idx, 1)
 			var err error
 			response, err = client.SendRequest(context.Background(), request)
