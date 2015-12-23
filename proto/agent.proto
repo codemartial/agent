@@ -1,0 +1,43 @@
+syntax="proto3";
+
+package agent;
+
+// A service request, somewhat compatible with HTTP
+message Request {
+  // Name of the remote service
+  string service_id = 1;
+  
+  // Path to script handling the request on the remote service
+  string path = 2;
+
+  // Round-trip timeout for response to this request
+  int32 timeout_m_s = 3;
+
+  // Request payload
+  bytes body = 4;
+
+  // User-provided HTTP headers
+  map<string, string> headers = 5;
+  
+  // Request parameters (Query Params or Form Data). Use only for backward-compatibility
+  map<string, string> params = 6;
+
+  // Script path to receive the response as a non-blocking callback
+  string callback = 7;
+}
+
+// Service response, somewhat compatible with HTTP
+message Response {
+  // Response status code (numeric)
+  int32 status_code = 1;
+
+  // Human readable response status message
+  string status = 2;
+
+  // Response body
+  bytes body = 3;
+}
+
+service AgentIO {
+  rpc SendRequest(Request) returns (Response) {}
+}
