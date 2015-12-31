@@ -45,12 +45,14 @@ Then run the C++ server:
 And re-run the benchmark as above.
 
 The Thrift example has all the auto-generated code and can be run by itself as follows:
+
     [agent]$ cd thrift/gen-go/agent/server
     [server]$ go build
     [server]$ ./server &
     Starting the simple server... on  localhost:9090
 
 Then run the benchmark client as follows:
+
     [server]$ cd ../client
     [client]$ go test -bench .
 
@@ -96,6 +98,19 @@ On the same machine, I got the following numbers with one sequential client (not
     BenchmarkGRPCClient	  100000	    108150 ns/op
     ok  	agent	12.098s
 
-Surprisingly, `grpc-go` is faster than `grpc-java` and 2x faster than `grpc-c++` in the concurrent scenario. In the sequential scenario, `grpc-go` again wins, albeit with an insignificant margin. Thrift is just dead in the water.
+Surprisingly, `grpc-go` is faster than `grpc-java` and 2x faster than
+`grpc-c++` in the concurrent scenario. In the sequential scenario,
+`grpc-go` again wins, albeit with an insignificant margin. Thrift is
+just dead in the water.
 
-Thrift is disappointing in other ways too. It generates a ton of code – 999 sloc of Go, compared to 518 of C++ with `grpc-c++` and 117 of Go with `grpc-go`. It is very difficult to figure out the boilerplate needed to get it going (see `thrift/gen-go/agent/client` and `thrift/gen-go/agent/server`. The client that it generates is not concurrent, which in turn means _Thrift_connections_are_not_multiplexed_, unlike GRPC. BTW, I did try to run 128 concurrents for Thrift, but the speedup was only about 1.2x instead of ~ 4x that is seen with `grpc-go` or `grpc-java` so I'm not sure if the Thrift server too is sufficiently concurrent.
+Thrift is disappointing in other ways too. It generates a ton of code
+– 999 sloc of Go, compared to 518 of C++ with `grpc-c++` and 117 of Go
+with `grpc-go`. It is very difficult to figure out the boilerplate
+needed to get it going (see `thrift/gen-go/agent/client` and
+`thrift/gen-go/agent/server`). The client that it generates is not
+concurrent, which in turn means
+[_Thrift connections are not multiplexed_](https://mail-archives.apache.org/mod_mbox/thrift-user/201208.mbox/%3CA0F963DCF29346458CDF2969683DF6CC70F90B3A@SC-MBX01-2.TheFacebook.com%3E),
+unlike GRPC. BTW, I did try to run 4, 128 concurrents for Thrift, but
+the speedup was only about 1.2x instead of ~ 4x that is seen with
+`grpc-go` or `grpc-java` so I'm not sure if the Thrift server too is
+sufficiently concurrent.
