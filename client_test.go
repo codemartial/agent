@@ -68,7 +68,7 @@ func TestOtherClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	if response.StatusCode != 0 || response.Status != "OK" || string(response.Body) != "/foo" {
-		t.Fatal("Unexpected response:", response.String())
+		t.Fatal("Unexpected response:", response)
 	}
 }
 
