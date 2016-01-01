@@ -7,10 +7,13 @@ The code here is for experimenting with very basic gRPC/Thrift stuff, except tha
 
 Included here are:
 * a gRPC service proto, `proto/agent.proto`,
-* a Go client test and benchmark `client.go`, `client_test.go`
-* a Go server implementation `server/server.go`
-* a C++ server implementation `server/server.cc`
-* a Java server implementation `server/AgentIOServer.java` (contributed by @vidubey)
+* a gRPC Go client test and benchmark `client.go`, `client_test.go`
+* a gRPC Go server implementation `server/server.go`
+* a gRPC C++ server implementation `server/server.cc`
+* a gRPC Java server implementation `server/AgentIOServer.java` (contributed by @vidubey)
+* a Thrift IDL for the same service `thrift/agent.thrift`
+* a Thrift Go implementation of the same service `thrift/gen-go`
+* a Thrift C++ implementation of the same service `thrift/gen-cpp`
 
 The following instructions assume that you have all the required gRPC components installed in the right place to be able to build new services. If you aren't able to build `github.com/grpc/grpc-go/examples/helloworld` and `github.com/grpc/grpc/examples/cpp/helloworld` from the [grpc-go](https://github.com/grpc/grpc-go) and [grpc](https://github.com/grpc/grpc) repos respectively, you'll most likely not be able to build the following either.
  
@@ -72,7 +75,7 @@ I've got the following benchmarking results on a Darwin 15.2.0, 2.5 GHz Intel Co
     BenchmarkGRPCClient-8	  500000	     27313 ns/op
     ok  	agent	13.974s
 ### GRPC Java (128 Clients)
-    $ go test -bench . -benchtime 10s; done
+    $ go test -bench . -benchtime 10s
     PASS
     BenchmarkGRPCClient-8	  500000	     29197 ns/op
     ok	    agent	15.005s
@@ -89,27 +92,27 @@ I've got the following benchmarking results on a Darwin 15.2.0, 2.5 GHz Intel Co
 On the same machine, I got the following numbers with a single non-concurrent client:
 
 ### Thrift Go
-    $ go test -bench . -benchtime 10s -cpu 1; done
+    $ go test -bench . -benchtime 10s -cpu 1
     PASS
     BenchmarkThriftClient         50000            317681 ns/op
     ok            agent/thrift/gen-go/agent/client     19.106s
 ### Thrift Go (Buffered Transport)
-    $ go test -bench . -benchtime 10s -cpu 1; done
+    $ go test -bench . -benchtime 10s -cpu 1
     PASS
     BenchmarkThriftClient	   300000	    41697 ns/op
     ok  	   agent/thrift/gen-go/agent/client	12.955s
 ### Thrift Go (Framed Transport)
-    $ go test -bench . -benchtime 10s -cpu 1; done
+    $ go test -bench . -benchtime 10s -cpu 1
     PASS
     BenchmarkThriftClient	  300000	     46840 ns/op
     ok  	   agent/thrift/gen-go/agent/client	14.539s    
 ### Thrift C++ (Buffered Transport)
-    $ go test -bench . -benchtime 10s -cpu 1; done
+    $ go test -bench . -benchtime 10s -cpu 1
     PASS
     BenchmarkThriftClient	   500000	    38221 ns/op
     ok  	   agent/thrift/gen-go/agent/client	19.518s
 ### Thrift C++ (Framed Transport)
-    $ go test -bench . -benchtime 10s -cpu 1; done
+    $ go test -bench . -benchtime 10s -cpu 1
     PASS
     BenchmarkThriftClient	  300000	     42343 ns/op
     ok  	   agent/thrift/gen-go/agent/client	13.153s
@@ -145,16 +148,17 @@ unlike GRPC.
 
 The C++ backend that Thrift built out-of-the-box is single threaded. I
 did find references to a non-blocking server implementation using
-framed transport, but couldn't get it set up easily.
+framed transport, but couldn't get it set up easily (missing
+`libthriftnb`).
 
 On the Go side, though, the reward for putting up with terrible
 documentation and somewhat more difficult code is the all-crushing
-performance – 2x faster than the next fastest, grpc-go when used in
-the "Buffered Transport" mode. The more reliable "Framed Transport
-Mode" is not as terribly fast but is still ~ 15% faster than
-grpc-go. To be fair, grpc is using framed, unbuffered transport while
-also doing a lot more bookkeeping for context, traces and latency
-profiling out of the box.
+performance – 2x faster than the next fastest, `grpc-go` when used in
+the "Buffered Transport" mode. The more reliable "Framed Transport"
+mode is not as terribly fast but is still ~ 15% faster than
+`grpc-go`. To be fair, gRPC is using framed, unbuffered transport
+while also doing a lot more bookkeeping for context, traces and
+latency profiling out of the box.
 
 ## Versions
 
