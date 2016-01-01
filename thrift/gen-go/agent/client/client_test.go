@@ -4,14 +4,32 @@ import (
 	"agent/thrift/gen-go/agent"
 	"fmt"
 	"git.apache.org/thrift.git/lib/go/thrift"
+	"sync/atomic"
 	"testing"
 )
 
 var request *agent.Request
 var response *agent.Response
+var client_idx int32
+
+const disableMT = true
+const NumClients = 128
+
+var clients = [NumClients]*agent.AgentIOClient{}
 
 func init() {
 	setEnv()
+	if disableMT {
+		return
+	}
+
+	for i := range clients {
+		client, err := NewClient()
+		if err != nil {
+			panic(err)
+		}
+		clients[i] = client
+	}
 }
 
 func TestClient(t *testing.T) {
@@ -30,6 +48,14 @@ func TestClient(t *testing.T) {
 }
 
 func BenchmarkThriftClient(b *testing.B) {
+	if disableMT {
+		benchmarkThriftClientST(b)
+	} else {
+		benchmarkThriftClientMT(b)
+	}
+}
+
+func benchmarkThriftClientST(b *testing.B) {
 	client, err := NewClient()
 	if err != nil {
 		panic(err)
@@ -43,6 +69,20 @@ func BenchmarkThriftClient(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+func benchmarkThriftClientMT(b *testing.B) {
+	request = &agent.Request{Path: "/foo"}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			client := clients[atomic.AddInt32(&client_idx, 1)%NumClients]
+			var err error
+			response, err = client.SendRequest(request)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
 
 func NewClient() (*agent.AgentIOClient, error) {
