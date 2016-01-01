@@ -61,23 +61,32 @@ The Thrift C++ server binary is at `thrift/gen-cpp/servercpp`
 ## Results
 I've got the following benchmarking results on a Darwin 15.2.0, 2.5 GHz Intel Core i7 (4x2 cores w/ HT), 1600 MHz DDR3 RAM:
 
-### C++ Server (128 Clients)
+### GRPC C++ (128 Clients)
     $ go test -bench . -benchtime 10s
     PASS
     BenchmarkGRPCClient-8	  300000	     58358 ns/op
     ok  	agent	18.114s
-### Go Server (128 Clients)
+### GRPC Go (128 Clients)
     $ go test -bench . -benchtime 10s
     PASS
     BenchmarkGRPCClient-8	  500000	     27313 ns/op
     ok  	agent	13.974s
-### Java Server (128 Clients)
+### GRPC Java (128 Clients)
     $ go test -bench . -benchtime 10s; done
     PASS
     BenchmarkGRPCClient-8	  500000	     29197 ns/op
     ok	    agent	15.005s
+### Thrift Go (128 Clients, Framed Transport)
+    PASS
+    BenchmarkThriftClient-8	 1000000	     23584 ns/op
+    ok  	agent/thrift/gen-go/agent/client	23.844s
+### Thrift Go (128 Clients, Buffered Transport)
+    PASS
+    BenchmarkThriftClient-8	 1000000	     14209 ns/op
+    ok  	agent/thrift/gen-go/agent/client	14.448s
 
-On the same machine, I got the following numbers with a single non-concurrent client (note the presence of Thrift):
+
+On the same machine, I got the following numbers with a single non-concurrent client:
 
 ### Thrift Go
     $ go test -bench . -benchtime 10s -cpu 1; done
@@ -92,7 +101,7 @@ On the same machine, I got the following numbers with a single non-concurrent cl
 ### Thrift Go (Framed Transport)
     $ go test -bench . -benchtime 10s -cpu 1; done
     PASS
-    BenchmarkThriftClient-8	  300000	     46840 ns/op
+    BenchmarkThriftClient	  300000	     46840 ns/op
     ok  	   agent/thrift/gen-go/agent/client	14.539s    
 ### Thrift C++ (Buffered Transport)
     $ go test -bench . -benchtime 10s -cpu 1; done
@@ -102,7 +111,7 @@ On the same machine, I got the following numbers with a single non-concurrent cl
 ### Thrift C++ (Framed Transport)
     $ go test -bench . -benchtime 10s -cpu 1; done
     PASS
-    BenchmarkThriftClient-8	  300000	     42343 ns/op
+    BenchmarkThriftClient	  300000	     42343 ns/op
     ok  	   agent/thrift/gen-go/agent/client	13.153s
 ### GRPC C++
     $ go test -bench . -benchtime 10s -cpu 1
@@ -138,11 +147,14 @@ The C++ backend that Thrift built out-of-the-box is single threaded. I
 did find references to a non-blocking server implementation using
 framed transport, but couldn't get it set up easily.
 
-Not tabulated above, but I ran multiple client processes (instead of
-invoking the same client in parallel), and got an equivalent
-throughput of ~ 25000 ns/op with Thrift-Go, which is slightly better
-than GRPC-Go with parallel clients. I tried emulating the test with
-GRPC-Go (single client) and got the equivalent of ~ 30000 ns/op.
+On the Go side, though, the reward for putting up with terrible
+documentation and somewhat more difficult code is the all-crushing
+performance – 2x faster than the next fastest, grpc-go when used in
+the "Buffered Transport" mode. The more reliable "Framed Transport
+Mode" is not as terribly fast but is still ~ 15% faster than
+grpc-go. To be fair, grpc is using framed, unbuffered transport while
+also doing a lot more bookkeeping for context, traces and latency
+profiling out of the box.
 
 ## Versions
 

@@ -4,6 +4,7 @@ import (
 	"agent/thrift/gen-go/agent"
 	"fmt"
 	"git.apache.org/thrift.git/lib/go/thrift"
+	"sync"
 	"sync/atomic"
 	"testing"
 )
@@ -12,10 +13,11 @@ var request *agent.Request
 var response *agent.Response
 var client_idx int32
 
-const disableMT = true
+const disableMT = false
 const NumClients = 128
 
 var clients = [NumClients]*agent.AgentIOClient{}
+var mus = [NumClients]sync.Mutex{}
 
 func init() {
 	setEnv()
@@ -75,12 +77,16 @@ func benchmarkThriftClientMT(b *testing.B) {
 	request = &agent.Request{Path: "/foo"}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			client := clients[atomic.AddInt32(&client_idx, 1)%NumClients]
+			idx := atomic.AddInt32(&client_idx, 1) % NumClients
+			mus[idx].Lock()
+			client := clients[idx]
 			var err error
 			response, err = client.SendRequest(request)
 			if err != nil {
+				mus[idx].Unlock()
 				b.Fatal(err)
 			}
+			mus[idx].Unlock()
 		}
 	})
 }
