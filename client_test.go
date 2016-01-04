@@ -73,7 +73,18 @@ func TestOtherClient(t *testing.T) {
 }
 
 func BenchmarkGRPCClient(b *testing.B) {
+	runBenchmark(b, false)
+}
+
+func BenchmarkGRPCClientLarge(b *testing.B) {
+	runBenchmark(b, true)
+}
+
+func runBenchmark(b *testing.B, large bool) {
 	request = &agent.Request{Path: "/foo"}
+	if large {
+		request.ServiceId = "large"
+	}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			client := clients[atomic.LoadInt32(&client_idx)%NumClients]

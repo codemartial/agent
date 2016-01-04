@@ -15,6 +15,7 @@ var client_idx int32
 
 const disableMT = false
 const NumClients = 128
+const gibberish1kB = `z/rt/gcAAAEDAAAAAgAAAA4AAAAICgAAAQAAAAAAAAAZAAAASAAAAF9fUEFHRVpFUk8AAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZAAAAKAIAAF9fVEVYVAAAAAAAAAAAAAAAEAAAAAAAAAAARQAAAAAAAAAAAAAAAAAAAEUAAAAAAAcAAAAFAAAABgAAAAAAAABfX3RleHQAAAAAAAAAAAAAX19URVhUAAAAAAAAAAAAAAAgAAAAAAAA34khAAAAAAAAEAAABAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAF9fcm9kYXRhAAAAAAAAAABfX1RFWFQAAAAAAAAAAAAA4KkhAAAAAADOkBYAAAAAAOCZIQAFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX190eXBlbGluawAAAAAAAF9fVEVYVAAAAAAAAAAAAACwOjgAAAAAANhbAAAAAAAAsCo4AAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABfX2dvc3ltdGFiAAAAAAAAX19URVhUAAAAAAAAAAAAAIiWOAAAAAAAAAAAAAAAAACIhjgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF9fZ29wY2xudGFiAAAAAABfX1RFWFQAAAAAAAAAAAAAoJY4AAAAAADTbgwAAAAAAKCGOAAFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX19zeW1ib2xfc3R1YjEAAF9fVEVYVAAAAAAAAAAAAACABUUAAAAAANgAAAAAAAAAgPVEAAUAAAAAAAAAAAAAAAgEAIAAAAAABgAAAAAAAAAZAAAA2AEAAF9fREFUQQAAAAAAAAAAAAAAEEUAAAAAAKBgBAAAAAAAAABFAAAAAADAsAEAAAAAAAMAAAADAAAABQAAAAAAAABfX25sX3N5bWJvbF9wdHIAX19EQVRBAAAAAAAAAAAAAAAQRQAAAAAA`
 
 var clients = [NumClients]*agent.AgentIOClient{}
 var mus = [NumClients]sync.Mutex{}
@@ -51,19 +52,31 @@ func TestClient(t *testing.T) {
 
 func BenchmarkThriftClient(b *testing.B) {
 	if disableMT {
-		benchmarkThriftClientST(b)
+		benchmarkThriftClientST(b, false)
 	} else {
-		benchmarkThriftClientMT(b)
+		benchmarkThriftClientMT(b, false)
 	}
 }
 
-func benchmarkThriftClientST(b *testing.B) {
+func BenchmarkThriftClientLarge(b *testing.B) {
+	if disableMT {
+		benchmarkThriftClientST(b, true)
+	} else {
+		benchmarkThriftClientMT(b, true)
+	}
+}
+
+func benchmarkThriftClientST(b *testing.B, large bool) {
 	client, err := NewClient()
 	if err != nil {
 		panic(err)
 	}
 	defer client.Transport.Close()
 	request = &agent.Request{Path: "/foo"}
+	if large {
+		request.ServiceID = "large"
+		request.Body = agent.Bytes(gibberish1kB)
+	}
 	for i := 0; i < b.N; i++ {
 		var err error
 		response, err = client.SendRequest(request)
@@ -73,8 +86,12 @@ func benchmarkThriftClientST(b *testing.B) {
 	}
 }
 
-func benchmarkThriftClientMT(b *testing.B) {
+func benchmarkThriftClientMT(b *testing.B, large bool) {
 	request = &agent.Request{Path: "/foo"}
+	if large {
+		request.ServiceID = "large"
+		request.Body = agent.Bytes(gibberish1kB)
+	}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			idx := atomic.AddInt32(&client_idx, 1) % NumClients
