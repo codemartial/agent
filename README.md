@@ -73,7 +73,8 @@ I've got the following benchmarking results on a Darwin 15.2.0, 2.5 GHz Intel Co
     $ go test -bench . -benchtime 10s
     PASS
     BenchmarkGRPCClient-8	  500000	     27313 ns/op
-    ok  	agent	13.974s
+    BenchmarkGRPCClientLarge-8	  500000	     31714 ns/op
+    ok  	agent	31.974s
 ### GRPC Java (128 Clients)
     $ go test -bench . -benchtime 10s
     PASS
@@ -81,12 +82,14 @@ I've got the following benchmarking results on a Darwin 15.2.0, 2.5 GHz Intel Co
     ok	    agent	15.005s
 ### Thrift Go (128 Clients, Framed Transport)
     PASS
-    BenchmarkThriftClient-8	 1000000	     23584 ns/op
-    ok  	agent/thrift/gen-go/agent/client	23.844s
+    BenchmarkThriftClient-8     	  500000	     23798 ns/op
+    BenchmarkThriftClientLarge-8	  500000	     26091 ns/op
+    ok  	agent/thrift/gen-go/agent/client	25.585s
 ### Thrift Go (128 Clients, Buffered Transport)
     PASS
-    BenchmarkThriftClient-8	 1000000	     14209 ns/op
-    ok  	agent/thrift/gen-go/agent/client	14.448s
+    BenchmarkThriftClient-8     	 1000000	     14158 ns/op
+    BenchmarkThriftClientLarge-8	 1000000	     15388 ns/op
+    ok  	agent/thrift/gen-go/agent/client	29.942s
 
 
 On the same machine, I got the following numbers with a single non-concurrent client:
@@ -132,33 +135,49 @@ On the same machine, I got the following numbers with a single non-concurrent cl
     BenchmarkGRPCClient	  100000	    108150 ns/op
     ok  	agent	12.098s
 
-Surprisingly, `grpc-go` is faster than `grpc-java` and 2x faster than
-`grpc-c++` in the concurrent scenario. In the sequential scenario,
-`grpc-go` again wins, albeit with an insignificant margin. Thrift
-happens to be a multi-faceted beast.
+*TL;DR: Thrift is way faster but gRPC is way easier*
 
-Working with Thrift is disappointing in many ways. It generates a ton
-of code – 999 sloc of Go, compared to 518 of C++ with `grpc-c++` and
-117 of Go with `grpc-go`. It is very difficult to figure out the
-boilerplate needed to get it going (see `thrift/gen-go/agent/client`
-and `thrift/gen-go/agent/server`). The client that it generates is not
-concurrent, which in turn means
-[_Thrift connections are not multiplexed_](https://mail-archives.apache.org/mod_mbox/thrift-user/201208.mbox/%3CA0F963DCF29346458CDF2969683DF6CC70F90B3A@SC-MBX01-2.TheFacebook.com%3E),
-unlike GRPC.
+Between implementations of gRPC, `grpc-go` is faster than `grpc-java`
+and 2x faster than `grpc-c++` in the concurrent scenario. In the
+sequential scenario, `grpc-go` again wins, albeit with an
+insignificant margin.
+
+Working with Thrift is difficult in many ways. It generates a ton of
+code – 999 sloc of Go, compared to 117 of Go with `grpc-go`. It is
+very difficult to figure out the boilerplate needed to get it going
+(see `thrift/gen-go/agent/client` and
+`thrift/gen-go/agent/server`). The client that it generates is not
+concurrent, which means manually controlling concurrent access to
+Thrift clients. That's an avoidable developer burden, IMHO.  [_Thrift
+connections are not multiplexed_]
+(https://mail-archives.apache.org/mod_mbox/thrift-user/201208.mbox/%3CA0F963DCF29346458CDF2969683DF6CC70F90B3A@SC-MBX01-2.TheFacebook.com%3E)
+either. This is unlike GRPC where I was able to instantiate multiple
+clients sharing the same underlying connection, though it was ~ 10%
+slower so you'd probably only use this to multiplex lots of idle
+clients.
 
 The C++ backend that Thrift built out-of-the-box is single threaded. I
 did find references to a non-blocking server implementation using
 framed transport, but couldn't get it set up easily (missing
 `libthriftnb`).
 
-On the Go side, though, the reward for putting up with terrible
-documentation and somewhat more difficult code is the all-crushing
-performance – 2x faster than the next fastest, `grpc-go` when used in
-the "Buffered Transport" mode. The more reliable "Framed Transport"
-mode is not as terribly fast but is still ~ 15% faster than
-`grpc-go`. To be fair, gRPC is using framed, unbuffered transport
-while also doing a lot more bookkeeping for context, traces and
-latency profiling out of the box.
+In terms of performance, though, the reward for putting up with
+terrible documentation and somewhat more difficult code is the
+all-crushing performance – 2x faster than the next fastest, `grpc-go`
+when used in the "Buffered Transport" mode. "Framed Transport" mode is
+not as terribly fast but is still ~ 15% faster than `grpc-go`. The
+`*Large` set of benchmarks use > 1kB payload, both for request and
+response to see if the speed disparity reduces, but the results don't
+indicate any significant difference.
+
+Unfortunately, I could not dig up any documentation outlining the
+limitations of `TBufferedTransport` to decide whether it makes sense
+to compare Thrift with `TBufferedTransport` against gRPC's default
+transport.
+
+To be fair, gRPC is also using framed transport while also doing a lot
+more book-keeping for context, traces and latency profiling out of the
+box.
 
 ## Versions
 
